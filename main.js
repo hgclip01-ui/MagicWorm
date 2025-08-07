@@ -40,9 +40,9 @@ class GameScene extends Phaser.Scene {
         this.snake = [];
         let head = this.physics.add.image(x, y, 'worm-head')
     .setOrigin(0)
-    .setSize(100, 64)       // Ukuran bounding box
-    .setOffset(0, 0)        // Posisi bounding box dari atas kiri gambar
-    .setImmovable(true);    // Supaya tidak terdorong saat tabrak
+    .setSize(100, 64)
+    .setOffset(0, 0)
+    .setImmovable(true));
 
         this.snake.push(this.createSegment(80, 100));
         this.snake.push(this.createSegment(60, 100));
