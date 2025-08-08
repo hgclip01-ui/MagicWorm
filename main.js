@@ -39,7 +39,7 @@ class GameScene extends Phaser.Scene {
 
         this.snake = [];
         this.snake.push(this.add.sprite(100, 100, 'head'));
-        this.snake.push(this.add.sprite(60, 100, 'body'));
+        this.snake.push(this.add.sprite(80, 100, 'body'));
         this.snake.push(this.add.sprite(60, 100, 'tail'));
 
         this.food = this.add.sprite(200, 200, 'food');
