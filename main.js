@@ -30,7 +30,7 @@ class GameScene extends Phaser.Scene {
         this.add.image(this.scale.width / 2, this.scale.height / 2, 'background')
             .setDisplaySize(this.scale.width, this.scale.height);
 
-        this.speed = 20;
+        this.speed = 30;
         this.direction = 'RIGHT';
         this.nextDirection = 'RIGHT';
         this.moveTimer = 0;
@@ -45,7 +45,7 @@ class GameScene extends Phaser.Scene {
         this.food = this.add.sprite(200, 200, 'food');
         this.placeFood();
 
-        this.scoreText = this.add.text(10, 10, 'Score: 0',
+        this.scoreText = this.add.text(0.1, 0.1, 'Score: 0',
             { fontSize: '24px', fill: '#fff' });
 
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -82,75 +82,72 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    
-moveSnake() {
-    let head = this.snake[0];
-    let newX = head.x;
-    let newY = head.y;
+    moveSnake() {
+        let head = this.snake[0];
+        let newX = head.x;
+        let newY = head.y;
 
-    if (this.direction === 'LEFT') newX -= this.speed;
-    else if (this.direction === 'RIGHT') newX += this.speed;
-    else if (this.direction === 'UP') newY -= this.speed;
-    else if (this.direction === 'DOWN') newY += this.speed;
+        if (this.direction === 'LEFT') newX -= this.speed;
+        else if (this.direction === 'RIGHT') newX += this.speed;
+        else if (this.direction === 'UP') newY -= this.speed;
+        else if (this.direction === 'DOWN') newY += this.speed;
 
-    // === [1] Collision dengan dinding pakai bounding box 100x64 ===
-    if (
-        newX - 50 < 0 ||                     // kiri
-        newX + 50 > this.scale.width ||       // kanan
-        newY - 32 < 0 ||                      // atas
-        newY + 32 > this.scale.height         // bawah
-    ) {
-        this.gameOver();
-        return;
-    }
-
-    // Move body
-    for (let i = this.snake.length - 1; i > 0; i--) {
-        this.snake[i].x = this.snake[i - 1].x;
-        this.snake[i].y = this.snake[i - 1].y;
-        this.snake[i].angle = this.snake[i - 1].angle;
-    }
-
-    head.x = newX;
-    head.y = newY;
-
-    // Rotate head
-    if (this.direction === 'LEFT') head.angle = 180;
-    else if (this.direction === 'RIGHT') head.angle = 0;
-    else if (this.direction === 'UP') head.angle = -90;
-    else if (this.direction === 'DOWN') head.angle = 90;
-
-    for (let i = 1; i < this.snake.length; i++) {
-        this.snake[i].angle = this.snake[i - 1].angle;
-    }
-
-    // === [2] Collision dengan badan sendiri pakai bounding box 100x64 ===
-    for (let i = 1; i < this.snake.length; i++) {
-        if (Phaser.Geom.Intersects.RectangleToRectangle(
-            new Phaser.Geom.Rectangle(newX - 50, newY - 32, 100, 64),
-            new Phaser.Geom.Rectangle(this.snake[i].x - 50, this.snake[i].y - 32, 100, 64)
-        )) {
+        if (newX < 0 || newX > this.scale.width || newY < 0 || newY > this.scale.height) {
             this.gameOver();
             return;
         }
+
+        // Move body
+        for (let i = this.snake.length - 1; i > 0; i--) {
+            this.snake[i].x = this.snake[i - 1].x;
+            this.snake[i].y = this.snake[i - 1].y;
+            this.snake[i].angle = this.snake[i - 1].angle;
+        }
+
+        head.x = newX;
+        head.y = newY;
+
+        // Rotate head
+        if (this.direction === 'LEFT') head.angle = 180;
+        else if (this.direction === 'RIGHT') head.angle = 0;
+        else if (this.direction === 'UP') head.angle = -90;
+        else if (this.direction === 'DOWN') head.angle = 90;
+
+        for (let i = 1; i < this.snake.length; i++) {
+            this.snake[i].angle = this.snake[i - 1].angle;
+        }
+
+        // Self collision
+        for (let i = 1; i < this.snake.length; i++) {
+            if (head.x === this.snake[i].x && head.y === this.snake[i].y) {
+                this.gameOver();
+                return;
+            }
+        }
+
+        // Food collision
+        if (Phaser.Math.Distance.Between(head.x, head.y, this.food.x, this.food.y) < 15) {
+            this.snake.push(this.add.sprite(
+                this.snake[this.snake.length - 1].x,
+                this.snake[this.snake.length - 1].y,
+                'body'
+            ));
+            this.score += 10;
+            this.scoreText.setText('Score: ' + this.score);
+            this.placeFood();
+        }
     }
 
-    // === [3] Collision dengan food pakai bounding box kepala 100x64 vs food 32x32 ===
-    if (Phaser.Geom.Intersects.RectangleToRectangle(
-        new Phaser.Geom.Rectangle(newX - 50, newY - 32, 100, 64),
-        new Phaser.Geom.Rectangle(this.food.x - 16, this.food.y - 16, 32, 32)
-    )) {
-        this.snake.push(this.add.sprite(
-            this.snake[this.snake.length - 1].x,
-            this.snake[this.snake.length - 1].y,
-            'body'
-        ));
-        this.score += 10;
-        this.scoreText.setText('Score: ' + this.score);
-        this.placeFood();
+    placeFood() {
+        this.food.x = Phaser.Math.Between(20, this.scale.width - 20);
+        this.food.y = Phaser.Math.Between(20, this.scale.height - 20);
+    }
+
+    gameOver() {
+        this.alive = false;
+        this.scene.start('GameOverScene', { score: this.score });
     }
 }
-
 
 class GameOverScene extends Phaser.Scene {
     constructor() { super('GameOverScene'); }
