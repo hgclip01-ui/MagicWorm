@@ -1,188 +1,119 @@
-class StartMenuScene extends Phaser.Scene {
-    constructor() { super('StartMenu'); }
-    preload() {
-        this.load.image('startBg', 'assets/background.png');
-        this.load.image('startBtn', 'assets/start-button.png');
-    }
-    create() {
-        this.add.image(this.scale.width / 2, this.scale.height / 2, 'startBg')
-            .setDisplaySize(this.scale.width, this.scale.height);
+// main.js
+// Game Worm versi mobile + bounding box 100x64
 
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 100, 'WORM GAME',
-            { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
-
-        this.add.image(this.scale.width / 2, this.scale.height / 2 + 50, 'startBtn')
-            .setInteractive()
-            .on('pointerdown', () => this.scene.start('GameScene'));
-    }
-}
-
-class GameScene extends Phaser.Scene {
-    constructor() { super('GameScene'); }
-    preload() {
-        this.load.image('head', 'assets/worm-head.png');
-        this.load.image('body', 'assets/worm-body.png');
-        this.load.image('tail', 'assets/worm-body.png');
-        this.load.image('food', 'assets/food.png');
-        this.load.image('background', 'assets/background.png');
-    }
-    create() {
-        this.add.image(this.scale.width / 2, this.scale.height / 2, 'background')
-            .setDisplaySize(this.scale.width, this.scale.height);
-
-        this.speed = 20;
-        this.direction = 'RIGHT';
-        this.nextDirection = 'RIGHT';
-        this.moveTimer = 0;
-        this.score = 0;
-        this.alive = true;
-
-        this.snake = [];
-        this.snake.push(this.add.sprite(100, 100, 'head'));
-        this.snake.push(this.add.sprite(80, 100, 'body'));
-        this.snake.push(this.add.sprite(60, 100, 'tail'));
-
-        this.food = this.add.sprite(200, 200, 'food');
-        this.placeFood();
-
-        this.scoreText = this.add.text(10, 10, 'Score: 0',
-            { fontSize: '24px', fill: '#fff' });
-
-        this.cursors = this.input.keyboard.createCursorKeys();
-
-        this.input.on('pointerdown', (pointer) => {
-            this.startX = pointer.x;
-            this.startY = pointer.y;
-        });
-        this.input.on('pointerup', (pointer) => {
-            let dx = pointer.x - this.startX;
-            let dy = pointer.y - this.startY;
-            if (Math.abs(dx) > Math.abs(dy)) {
-                if (dx > 0 && this.direction !== 'LEFT') this.nextDirection = 'RIGHT';
-                else if (dx < 0 && this.direction !== 'RIGHT') this.nextDirection = 'LEFT';
-            } else {
-                if (dy > 0 && this.direction !== 'UP') this.nextDirection = 'DOWN';
-                else if (dy < 0 && this.direction !== 'DOWN') this.nextDirection = 'UP';
-            }
-        });
-    }
-
-    update(time) {
-        if (!this.alive) return;
-
-        if (this.cursors.left.isDown && this.direction !== 'RIGHT') this.nextDirection = 'LEFT';
-        else if (this.cursors.right.isDown && this.direction !== 'LEFT') this.nextDirection = 'RIGHT';
-        else if (this.cursors.up.isDown && this.direction !== 'DOWN') this.nextDirection = 'UP';
-        else if (this.cursors.down.isDown && this.direction !== 'UP') this.nextDirection = 'DOWN';
-
-        if (time > this.moveTimer) {
-            this.moveTimer = time + 150;
-            this.direction = this.nextDirection;
-            this.moveSnake();
-        }
-    }
-
-    moveSnake() {
-        let head = this.snake[0];
-        let newX = head.x;
-        let newY = head.y;
-
-        if (this.direction === 'LEFT') newX -= this.speed;
-        else if (this.direction === 'RIGHT') newX += this.speed;
-        else if (this.direction === 'UP') newY -= this.speed;
-        else if (this.direction === 'DOWN') newY += this.speed;
-
-        if (newX < 0 || newX > this.scale.width || newY < 0 || newY > this.scale.height) {
-            this.gameOver();
-            return;
-        }
-
-        // Move body
-        for (let i = this.snake.length - 1; i > 0; i--) {
-            this.snake[i].x = this.snake[i - 1].x;
-            this.snake[i].y = this.snake[i - 1].y;
-            this.snake[i].angle = this.snake[i - 1].angle;
-        }
-
-        head.x = newX;
-        head.y = newY;
-
-        // Rotate head
-        if (this.direction === 'LEFT') head.angle = 180;
-        else if (this.direction === 'RIGHT') head.angle = 0;
-        else if (this.direction === 'UP') head.angle = -90;
-        else if (this.direction === 'DOWN') head.angle = 90;
-
-        for (let i = 1; i < this.snake.length; i++) {
-            this.snake[i].angle = this.snake[i - 1].angle;
-        }
-
-        // Self collision
-        for (let i = 1; i < this.snake.length; i++) {
-            if (head.x === this.snake[i].x && head.y === this.snake[i].y) {
-                this.gameOver();
-                return;
-            }
-        }
-
-        // Food collision
-        if (Phaser.Math.Distance.Between(head.x, head.y, this.food.x, this.food.y) < 15) {
-            this.snake.push(this.add.sprite(
-                this.snake[this.snake.length - 1].x,
-                this.snake[this.snake.length - 1].y,
-                'body'
-            ));
-            this.score += 10;
-            this.scoreText.setText('Score: ' + this.score);
-            this.placeFood();
-        }
-    }
-
-    placeFood() {
-        this.food.x = Phaser.Math.Between(20, this.scale.width - 20);
-        this.food.y = Phaser.Math.Between(20, this.scale.height - 20);
-    }
-
-    gameOver() {
-        this.alive = false;
-        this.scene.start('GameOverScene', { score: this.score });
-    }
-}
-
-class GameOverScene extends Phaser.Scene {
-    constructor() { super('GameOverScene'); }
-    init(data) { this.finalScore = data.score; }
-    preload() {
-        this.load.image('bg', 'assets/background.png');
-        this.load.image('restartBtn', 'assets/restart-button.png');
-    }
-    create() {
-        this.add.image(this.scale.width / 2, this.scale.height / 2, 'bg')
-            .setDisplaySize(this.scale.width, this.scale.height);
-
-        this.add.text(this.scale.width / 2, this.scale.height / 2 - 100, 'GAME OVER',
-            { fontSize: '48px', fill: '#f00' }).setOrigin(0.5);
-
-        this.add.text(this.scale.width / 2, this.scale.height / 2, 'Score: ' + this.finalScore,
-            { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
-
-        this.add.image(this.scale.width / 2, this.scale.height / 2 + 100, 'restartBtn')
-            .setInteractive()
-            .on('pointerdown', () => this.scene.start('StartMenu'));
-    }
-}
-
-const config = {
+let config = {
     type: Phaser.AUTO,
-    width: window.innerWidth,
-    height: window.innerHeight,
-    backgroundColor: '#2d2d2d',
-    parent: 'game-container',
-    scene: [StartMenuScene, GameScene, GameOverScene]
+    width: 800,
+    height: 600,
+    backgroundColor: '#000000',
+    physics: {
+        default: 'arcade',
+        arcade: { debug: false }
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
 };
 
-const game = new Phaser.Game(config);
+let game = new Phaser.Game(config);
+let worm;
+let food;
+let cursors;
+let score = 0;
+let scoreText;
+let speed = 100;
+let direction = 'RIGHT';
+let isGameOver = false;
 
-window.addEventListener('resize', () => {
-    game.scale.resize(window.innerWidth, window.innerHeight);
-});
+function preload() {
+    this.load.image('wormHead', 'assets/worm-head.png'); // 100x64
+    this.load.image('wormBody', 'assets/worm-body.png');
+    this.load.image('food', 'assets/food.png');
+    this.load.image('startUI', 'assets/start-ui.png');
+    this.load.image('restartUI', 'assets/restart-ui.png');
+}
+
+function create() {
+    score = 0;
+    isGameOver = false;
+
+    // Worm head
+    worm = this.physics.add.group();
+    let head = worm.create(100, 100, 'wormHead');
+    head.setOrigin(0.5);
+    head.body.setSize(100, 64); // Bounding box akurat
+    head.body.setOffset(0, 0);
+
+    // Food
+    food = this.physics.add.image(400, 300, 'food');
+
+    // UI Score
+    scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '24px', fill: '#FFF' });
+
+    // Kontrol
+    cursors = this.input.keyboard.createCursorKeys();
+
+    // Collision dengan food
+    this.physics.add.overlap(worm, food, eatFood, null, this);
+
+    // Game over jika nabrak dinding
+    this.physics.world.setBoundsCollision(true, true, true, true);
+    worm.children.iterate(function (segment) {
+        segment.setCollideWorldBounds(true);
+        segment.body.onWorldBounds = true;
+    });
+
+    this.physics.world.on('worldbounds', function () {
+        gameOver.call(this);
+    }, this);
+}
+
+function update() {
+    if (isGameOver) return;
+
+    // Gerakan otomatis
+    let head = worm.getChildren()[0];
+    if (direction === 'LEFT') head.x -= speed * this.game.loop.delta / 1000;
+    else if (direction === 'RIGHT') head.x += speed * this.game.loop.delta / 1000;
+    else if (direction === 'UP') head.y -= speed * this.game.loop.delta / 1000;
+    else if (direction === 'DOWN') head.y += speed * this.game.loop.delta / 1000;
+
+    // Kontrol arah
+    if (cursors.left.isDown && direction !== 'RIGHT') direction = 'LEFT';
+    else if (cursors.right.isDown && direction !== 'LEFT') direction = 'RIGHT';
+    else if (cursors.up.isDown && direction !== 'DOWN') direction = 'UP';
+    else if (cursors.down.isDown && direction !== 'UP') direction = 'DOWN';
+
+    // Cek tabrakan dengan badan sendiri
+    let segments = worm.getChildren();
+    for (let i = 1; i < segments.length; i++) {
+        if (Phaser.Geom.Intersects.RectangleToRectangle(head.getBounds(), segments[i].getBounds())) {
+            gameOver.call(this);
+        }
+    }
+}
+
+function eatFood(head, f) {
+    score += 10;
+    scoreText.setText('Score: ' + score);
+
+    // Pindahkan makanan
+    food.x = Phaser.Math.Between(50, 750);
+    food.y = Phaser.Math.Between(50, 550);
+
+    // Tambah badan
+    let tail = worm.getChildren()[worm.getChildren().length - 1];
+    let newSegment = worm.create(tail.x, tail.y, 'wormBody');
+    newSegment.setOrigin(0.5);
+    newSegment.body.setSize(100, 64);
+}
+
+function gameOver() {
+    isGameOver = true;
+    this.add.image(400, 300, 'restartUI').setOrigin(0.5);
+    this.input.once('pointerdown', () => {
+        this.scene.restart();
+    });
+}
