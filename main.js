@@ -38,7 +38,11 @@ class StartMenuScene extends Phaser.Scene {
                     alert("Masukkan alamat wallet terlebih dahulu!");
                     return;
                 }
+                // Hapus input wallet sebelum game mulai
                 input.remove();
+                // Pastikan canvas fokus agar keyboard berfungsi
+                this.game.canvas.focus();
+                // Mulai game
                 this.scene.start('GameScene', { playerWallet: walletAddress });
             });
     }
@@ -61,7 +65,8 @@ class GameScene extends Phaser.Scene {
         this.speed = 30;
         this.direction = 'RIGHT';
         this.nextDirection = 'RIGHT';
-        this.moveTimer = 0;
+        this.moveDelay = 150; // ms antar gerakan
+        this.lastMoveTime = 0;
         this.score = 0;
         this.alive = true;
 
@@ -80,18 +85,21 @@ class GameScene extends Phaser.Scene {
         this.scoreText = this.add.text(10, 10, 'Score: 0',
             { fontSize: '24px', fill: '#fff' });
 
+        // Ambil kontrol keyboard
         this.cursors = this.input.keyboard.createCursorKeys();
     }
     update(time) {
         if (!this.alive) return;
 
+        // Update arah berdasarkan input
         if (this.cursors.left.isDown && this.direction !== 'RIGHT') this.nextDirection = 'LEFT';
         else if (this.cursors.right.isDown && this.direction !== 'LEFT') this.nextDirection = 'RIGHT';
         else if (this.cursors.up.isDown && this.direction !== 'DOWN') this.nextDirection = 'UP';
         else if (this.cursors.down.isDown && this.direction !== 'UP') this.nextDirection = 'DOWN';
 
-        if (time > this.moveTimer) {
-            this.moveTimer = time + 150;
+        // Pindah hanya jika delay terlewati
+        if (time - this.lastMoveTime > this.moveDelay) {
+            this.lastMoveTime = time;
             this.direction = this.nextDirection;
             this.moveSnake();
         }
@@ -137,15 +145,15 @@ class GameScene extends Phaser.Scene {
             this.scoreText.setText('Score: ' + this.score);
             this.placeFood();
 
-            // Cek apakah reward sudah 5 MON
+            // Cek maksimal reward 5 MON
             if (this.score * 0.1 >= 5) {
                 return this.gameOver();
             }
         }
     }
     placeFood() {
-        this.food.x = Phaser.Math.Between(20, this.scale.width - 20);
-        this.food.y = Phaser.Math.Between(20, this.scale.height - 20);
+        this.food.x = Math.floor(Phaser.Math.Between(0, this.scale.width / this.speed - 1)) * this.speed;
+        this.food.y = Math.floor(Phaser.Math.Between(0, this.scale.height / this.speed - 1)) * this.speed;
     }
     gameOver() {
         this.alive = false;
