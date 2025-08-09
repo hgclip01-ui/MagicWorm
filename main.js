@@ -38,11 +38,8 @@ class StartMenuScene extends Phaser.Scene {
                     alert("Masukkan alamat wallet terlebih dahulu!");
                     return;
                 }
-                // Hapus input wallet sebelum game mulai
                 input.remove();
-                // Pastikan canvas fokus agar keyboard berfungsi
                 this.game.canvas.focus();
-                // Mulai game
                 this.scene.start('GameScene', { playerWallet: walletAddress });
             });
     }
@@ -57,6 +54,12 @@ class GameScene extends Phaser.Scene {
         this.load.image('tail', 'assets/worm-body.png');
         this.load.image('food', 'assets/food.png');
         this.load.image('background', 'assets/background.png');
+
+        // Tombol panah untuk HP
+        this.load.image('arrowUp', 'assets/arrow-up.png');
+        this.load.image('arrowDown', 'assets/arrow-down.png');
+        this.load.image('arrowLeft', 'assets/arrow-left.png');
+        this.load.image('arrowRight', 'assets/arrow-right.png');
     }
     create() {
         this.add.image(this.scale.width / 2, this.scale.height / 2, 'background')
@@ -65,7 +68,7 @@ class GameScene extends Phaser.Scene {
         this.speed = 30;
         this.direction = 'RIGHT';
         this.nextDirection = 'RIGHT';
-        this.moveDelay = 150; // ms antar gerakan
+        this.moveDelay = 150;
         this.lastMoveTime = 0;
         this.score = 0;
         this.alive = true;
@@ -85,19 +88,43 @@ class GameScene extends Phaser.Scene {
         this.scoreText = this.add.text(10, 10, 'Score: 0',
             { fontSize: '24px', fill: '#fff' });
 
-        // Ambil kontrol keyboard
+        // Keyboard untuk PC
         this.cursors = this.input.keyboard.createCursorKeys();
+
+        // Tombol panah untuk HP
+        if (/Mobi|Android/i.test(navigator.userAgent)) {
+            this.createMobileControls();
+        }
+    }
+    createMobileControls() {
+        const size = 60;
+        const alpha = 0.5;
+
+        const left = this.add.image(80, this.scale.height - 80, 'arrowLeft').setInteractive().setAlpha(alpha);
+        const right = this.add.image(160, this.scale.height - 80, 'arrowRight').setInteractive().setAlpha(alpha);
+        const up = this.add.image(this.scale.width - 120, this.scale.height - 140, 'arrowUp').setInteractive().setAlpha(alpha);
+        const down = this.add.image(this.scale.width - 120, this.scale.height - 60, 'arrowDown').setInteractive().setAlpha(alpha);
+
+        left.on('pointerdown', () => { if (this.direction !== 'RIGHT') this.nextDirection = 'LEFT'; });
+        right.on('pointerdown', () => { if (this.direction !== 'LEFT') this.nextDirection = 'RIGHT'; });
+        up.on('pointerdown', () => { if (this.direction !== 'DOWN') this.nextDirection = 'UP'; });
+        down.on('pointerdown', () => { if (this.direction !== 'UP') this.nextDirection = 'DOWN'; });
+
+        left.setDisplaySize(size, size);
+        right.setDisplaySize(size, size);
+        up.setDisplaySize(size, size);
+        down.setDisplaySize(size, size);
     }
     update(time) {
         if (!this.alive) return;
 
-        // Update arah berdasarkan input
+        // Keyboard control
         if (this.cursors.left.isDown && this.direction !== 'RIGHT') this.nextDirection = 'LEFT';
         else if (this.cursors.right.isDown && this.direction !== 'LEFT') this.nextDirection = 'RIGHT';
         else if (this.cursors.up.isDown && this.direction !== 'DOWN') this.nextDirection = 'UP';
         else if (this.cursors.down.isDown && this.direction !== 'UP') this.nextDirection = 'DOWN';
 
-        // Pindah hanya jika delay terlewati
+        // Pindah ular
         if (time - this.lastMoveTime > this.moveDelay) {
             this.lastMoveTime = time;
             this.direction = this.nextDirection;
@@ -114,12 +141,10 @@ class GameScene extends Phaser.Scene {
         else if (this.direction === 'UP') newY -= this.speed;
         else if (this.direction === 'DOWN') newY += this.speed;
 
-        // Cek tabrakan dinding
         if (newX < 0 || newX >= this.scale.width || newY < 0 || newY >= this.scale.height) {
             return this.gameOver();
         }
 
-        // Gerakkan body
         for (let i = this.snake.length - 1; i > 0; i--) {
             this.snake[i].x = this.snake[i - 1].x;
             this.snake[i].y = this.snake[i - 1].y;
@@ -127,14 +152,12 @@ class GameScene extends Phaser.Scene {
         head.x = newX;
         head.y = newY;
 
-        // Cek tabrakan dengan tubuh
         for (let i = 1; i < this.snake.length; i++) {
             if (head.x === this.snake[i].x && head.y === this.snake[i].y) {
                 return this.gameOver();
             }
         }
 
-        // Cek makan makanan
         if (Phaser.Math.Distance.Between(head.x, head.y, this.food.x, this.food.y) < 15) {
             this.snake.push(this.add.sprite(
                 this.snake[this.snake.length - 1].x,
@@ -145,7 +168,6 @@ class GameScene extends Phaser.Scene {
             this.scoreText.setText('Score: ' + this.score);
             this.placeFood();
 
-            // Cek maksimal reward 5 MON
             if (this.score * 0.1 >= 5) {
                 return this.gameOver();
             }
