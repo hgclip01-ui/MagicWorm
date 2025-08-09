@@ -11,14 +11,42 @@ class StartMenuScene extends Phaser.Scene {
         this.add.text(this.scale.width / 2, this.scale.height / 2 - 100, 'WORM GAME',
             { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
 
-        this.add.image(this.scale.width / 2, this.scale.height / 2 + 50, 'startBtn')
+        // Input wallet HTML
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Masukkan Alamat Wallet Monad';
+        input.id = 'wallet-input';
+        input.style.position = 'absolute';
+        input.style.left = `${window.innerWidth / 2 - 150}px`;
+        input.style.top = `${window.innerHeight / 2}px`;
+        input.style.width = '300px';
+        input.style.padding = '10px';
+        input.style.fontSize = '18px';
+        input.style.border = '2px solid #0f0';
+        input.style.borderRadius = '8px';
+        input.style.background = 'rgba(0,0,0,0.6)';
+        input.style.color = '#fff';
+        input.style.textAlign = 'center';
+        input.style.outline = 'none';
+        document.body.appendChild(input);
+
+        this.add.image(this.scale.width / 2, this.scale.height / 2 + 100, 'startBtn')
             .setInteractive()
-            .on('pointerdown', () => this.scene.start('GameScene'));
+            .on('pointerdown', () => {
+                const walletAddress = input.value.trim();
+                if (!walletAddress) {
+                    alert("Masukkan alamat wallet terlebih dahulu!");
+                    return;
+                }
+                input.remove();
+                this.scene.start('GameScene', { playerWallet: walletAddress });
+            });
     }
 }
 
 class GameScene extends Phaser.Scene {
     constructor() { super('GameScene'); }
+    init(data) { this.playerWallet = data.playerWallet; }
     preload() {
         this.load.image('head', 'assets/worm-head.png');
         this.load.image('body', 'assets/worm-body.png');
@@ -30,50 +58,30 @@ class GameScene extends Phaser.Scene {
         this.add.image(this.scale.width / 2, this.scale.height / 2, 'background')
             .setDisplaySize(this.scale.width, this.scale.height);
 
-        this.cellSize = 30; // ukuran grid
-        this.speed = this.cellSize;
+        this.speed = 30;
         this.direction = 'RIGHT';
         this.nextDirection = 'RIGHT';
         this.moveTimer = 0;
         this.score = 0;
         this.alive = true;
 
-        // Posisi start di tengah grid
-        const startX = Math.floor(this.scale.width / (2 * this.cellSize)) * this.cellSize;
-        const startY = Math.floor(this.scale.height / (2 * this.cellSize)) * this.cellSize;
+        // Spawn di tengah
+        const startX = Math.floor(this.scale.width / (2 * this.speed)) * this.speed;
+        const startY = Math.floor(this.scale.height / (2 * this.speed)) * this.speed;
 
-        // Snake awal
         this.snake = [];
         this.snake.push(this.add.sprite(startX, startY, 'head'));
-        this.snake.push(this.add.sprite(startX - this.cellSize, startY, 'body'));
-        this.snake.push(this.add.sprite(startX - this.cellSize * 2, startY, 'tail'));
+        this.snake.push(this.add.sprite(startX - this.speed, startY, 'body'));
+        this.snake.push(this.add.sprite(startX - this.speed * 2, startY, 'tail'));
 
-        // Makanan
-        this.food = this.add.sprite(0, 0, 'food');
+        this.food = this.add.sprite(200, 200, 'food');
         this.placeFood();
 
-        this.scoreText = this.add.text(0.1, 0.1, 'Score: 0',
+        this.scoreText = this.add.text(10, 10, 'Score: 0',
             { fontSize: '24px', fill: '#fff' });
 
         this.cursors = this.input.keyboard.createCursorKeys();
-
-        this.input.on('pointerdown', (pointer) => {
-            this.startX = pointer.x;
-            this.startY = pointer.y;
-        });
-        this.input.on('pointerup', (pointer) => {
-            let dx = pointer.x - this.startX;
-            let dy = pointer.y - this.startY;
-            if (Math.abs(dx) > Math.abs(dy)) {
-                if (dx > 0 && this.direction !== 'LEFT') this.nextDirection = 'RIGHT';
-                else if (dx < 0 && this.direction !== 'RIGHT') this.nextDirection = 'LEFT';
-            } else {
-                if (dy > 0 && this.direction !== 'UP') this.nextDirection = 'DOWN';
-                else if (dy < 0 && this.direction !== 'DOWN') this.nextDirection = 'UP';
-            }
-        });
     }
-
     update(time) {
         if (!this.alive) return;
 
@@ -88,7 +96,6 @@ class GameScene extends Phaser.Scene {
             this.moveSnake();
         }
     }
-
     moveSnake() {
         let head = this.snake[0];
         let newX = head.x;
@@ -101,86 +108,65 @@ class GameScene extends Phaser.Scene {
 
         // Cek tabrakan dinding
         if (newX < 0 || newX >= this.scale.width || newY < 0 || newY >= this.scale.height) {
-            this.gameOver();
-            return;
+            return this.gameOver();
         }
 
-        // Pindahkan body
+        // Gerakkan body
         for (let i = this.snake.length - 1; i > 0; i--) {
             this.snake[i].x = this.snake[i - 1].x;
             this.snake[i].y = this.snake[i - 1].y;
-            this.snake[i].angle = this.snake[i - 1].angle;
         }
-
-        // Update posisi head
         head.x = newX;
         head.y = newY;
-
-        // Rotasi head
-        if (this.direction === 'LEFT') head.angle = 180;
-        else if (this.direction === 'RIGHT') head.angle = 0;
-        else if (this.direction === 'UP') head.angle = -90;
-        else if (this.direction === 'DOWN') head.angle = 90;
-
-        for (let i = 1; i < this.snake.length; i++) {
-            this.snake[i].angle = this.snake[i - 1].angle;
-        }
 
         // Cek tabrakan dengan tubuh
         for (let i = 1; i < this.snake.length; i++) {
             if (head.x === this.snake[i].x && head.y === this.snake[i].y) {
-                this.gameOver();
-                return;
+                return this.gameOver();
             }
         }
 
-        // Cek makan food
-        if (head.x === this.food.x && head.y === this.food.y) {
+        // Cek makan makanan
+        if (Phaser.Math.Distance.Between(head.x, head.y, this.food.x, this.food.y) < 15) {
             this.snake.push(this.add.sprite(
                 this.snake[this.snake.length - 1].x,
                 this.snake[this.snake.length - 1].y,
                 'body'
             ));
-            this.score += 10;
+            this.score += 1;
             this.scoreText.setText('Score: ' + this.score);
             this.placeFood();
+
+            // Cek apakah reward sudah 5 MON
+            if (this.score * 0.1 >= 5) {
+                return this.gameOver();
+            }
         }
     }
-
     placeFood() {
-        let validPos = false;
-        while (!validPos) {
-            let foodX = Math.floor(Phaser.Math.Between(0, this.scale.width - this.cellSize) / this.cellSize) * this.cellSize;
-            let foodY = Math.floor(Phaser.Math.Between(0, this.scale.height - this.cellSize) / this.cellSize) * this.cellSize;
-
-            validPos = true;
-            for (let segment of this.snake) {
-                if (segment.x === foodX && segment.y === foodY) {
-                    validPos = false;
-                    break;
-                }
-            }
-            if (validPos) {
-                this.food.x = foodX;
-                this.food.y = foodY;
-            }
-        }
+        this.food.x = Phaser.Math.Between(20, this.scale.width - 20);
+        this.food.y = Phaser.Math.Between(20, this.scale.height - 20);
     }
-
     gameOver() {
         this.alive = false;
-        this.scene.start('GameOverScene', { score: this.score });
+        this.scene.start('GameOverScene', { 
+            score: this.score,
+            wallet: this.playerWallet
+        });
     }
 }
 
 class GameOverScene extends Phaser.Scene {
     constructor() { super('GameOverScene'); }
-    init(data) { this.finalScore = data.score; }
+    init(data) { 
+        this.finalScore = data.score; 
+        this.playerWallet = data.wallet; 
+    }
     preload() {
         this.load.image('bg', 'assets/background.png');
         this.load.image('restartBtn', 'assets/restart-button.png');
     }
-    create() {
+    async create() {
         this.add.image(this.scale.width / 2, this.scale.height / 2, 'bg')
             .setDisplaySize(this.scale.width, this.scale.height);
 
@@ -189,6 +175,29 @@ class GameOverScene extends Phaser.Scene {
 
         this.add.text(this.scale.width / 2, this.scale.height / 2, 'Score: ' + this.finalScore,
             { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+
+        let statusText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 50, "Mengirim reward...",
+            { fontSize: '20px', fill: '#fff' }).setOrigin(0.5);
+
+        try {
+            const res = await fetch("https://reward-indol.vercel.app/api/claimReward", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    wallet: this.playerWallet,
+                    score: this.finalScore
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                statusText.setText(`Reward ${data.reward} MON terkirim!`);
+            } else {
+                statusText.setText(`Gagal: ${data.error}`);
+            }
+        } catch (err) {
+            statusText.setText(`Error koneksi: ${err.message}`);
+        }
 
         this.add.image(this.scale.width / 2, this.scale.height / 2 + 100, 'restartBtn')
             .setInteractive()
